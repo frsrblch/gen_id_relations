@@ -14,7 +14,7 @@ impl<Arena> PartialEq for Relation<Arena> {
     fn eq(&self, other: &Self) -> bool {
         use Relation::*;
         match (self, other) {
-            (ChildOf(lhs), ChildOf(rhs)) => lhs.eq(&rhs),
+            (ChildOf(lhs), ChildOf(rhs)) => lhs.eq(rhs),
             (ParentOf(lhs), ParentOf(rhs)) => lhs.eq(rhs),
             _ => false,
         }
