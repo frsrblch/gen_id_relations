@@ -31,12 +31,12 @@ impl<Arena> Relation<Arena> {
 }
 
 #[derive(Debug, ForceDefault, ForceClone)]
-pub struct MonotypeBipartite<Arena> {
+pub struct Relations<Arena> {
     values: RawComponent<Arena, Relation<Arena>>,
 }
 
 /// Requires fixed because unlinking is not implemented
-impl<Arena: Fixed> MonotypeBipartite<Arena> {
+impl<Arena: Fixed> Relations<Arena> {
     #[inline]
     fn insert_if_empty(&mut self, id: impl ValidId<Arena = Arena>, relation: Relation<Arena>) {
         match self.values.get(id.id()) {
@@ -69,7 +69,7 @@ impl<Arena: Fixed> MonotypeBipartite<Arena> {
     }
 }
 
-impl<Arena, V: ValidId<Arena = Arena>> Index<V> for MonotypeBipartite<Arena> {
+impl<Arena, V: ValidId<Arena = Arena>> Index<V> for Relations<Arena> {
     type Output = Relation<Arena>;
 
     #[inline]
@@ -78,7 +78,7 @@ impl<Arena, V: ValidId<Arena = Arena>> Index<V> for MonotypeBipartite<Arena> {
     }
 }
 
-impl<'a, Arena> IntoIterator for &'a MonotypeBipartite<Arena> {
+impl<'a, Arena> IntoIterator for &'a Relations<Arena> {
     type Item = &'a Relation<Arena>;
     type IntoIter = <&'a RawComponent<Arena, Relation<Arena>> as IntoIterator>::IntoIter;
 
@@ -87,7 +87,7 @@ impl<'a, Arena> IntoIterator for &'a MonotypeBipartite<Arena> {
     }
 }
 
-impl<'a, Arena> ContextualIterator for &'a MonotypeBipartite<Arena> {
+impl<'a, Arena> ContextualIterator for &'a Relations<Arena> {
     type Context = Arena;
 }
 
@@ -107,7 +107,7 @@ mod test {
 
     #[test]
     fn get_children_for_new_parent_returns_empty_vec() {
-        let mut graph = MonotypeBipartite::<Arena>::default();
+        let mut graph = Relations::<Arena>::default();
 
         let parent = get_id(0);
 
@@ -117,7 +117,7 @@ mod test {
 
     #[test]
     fn link_child_to_parent() {
-        let mut graph = MonotypeBipartite::<Arena>::default();
+        let mut graph = Relations::<Arena>::default();
 
         let id0 = get_id(0);
         let id1 = get_id(1);
@@ -132,7 +132,7 @@ mod test {
     #[test]
     #[should_panic]
     fn link_child_to_another_child() {
-        let mut graph = MonotypeBipartite::<Arena>::default();
+        let mut graph = Relations::<Arena>::default();
 
         let id0 = get_id(0);
         let id1 = get_id(1);
@@ -146,7 +146,7 @@ mod test {
     #[test]
     #[should_panic]
     fn insert_parent_overtop_of_another_link() {
-        let mut graph = MonotypeBipartite::<Arena>::default();
+        let mut graph = Relations::<Arena>::default();
 
         let id0 = get_id(0);
 
@@ -157,7 +157,7 @@ mod test {
     #[test]
     #[should_panic]
     fn insert_child_overtop_of_another_parent() {
-        let mut graph = MonotypeBipartite::<Arena>::default();
+        let mut graph = Relations::<Arena>::default();
 
         let id0 = get_id(0);
         let id1 = get_id(1);

@@ -1,5 +1,5 @@
 [package]
-name = "gen_id_monotype_bipartite"
+name = "gen_id_relations"
 version = "0.1.0"
 edition = "2018"
 
