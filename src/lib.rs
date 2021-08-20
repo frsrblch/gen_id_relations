@@ -7,5 +7,5 @@ use std::ops::Index;
 mod range;
 mod vec;
 
-pub use range::RangeRelations;
-pub use vec::VecRelations;
+pub use range::*;
+pub use vec::*;
