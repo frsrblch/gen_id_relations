@@ -1,4 +1,4 @@
-use force_derive::{ForceClone, ForceDefault};
+use force_derive::{ForceClone, ForceDefault, ForceEq, ForcePartialEq};
 use gen_id_allocator::{Id, IdRange, ValidId};
 use gen_id_component::RawComponent;
 use iter_context::ContextualIterator;

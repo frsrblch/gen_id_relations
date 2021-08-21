@@ -1,29 +1,32 @@
 use super::*;
 use gen_id_allocator::Fixed;
 
-#[derive(Debug, ForceClone)]
+#[derive(Debug, ForceClone, ForceEq, ForcePartialEq)]
 pub enum RangeRelation<Arena> {
     ChildOf(Id<Arena>),
     ParentOf(IdRange<Arena>),
 }
 
-impl<Arena> PartialEq for RangeRelation<Arena> {
-    fn eq(&self, other: &Self) -> bool {
-        use RangeRelation::*;
-        match (self, other) {
-            (ChildOf(lhs), ChildOf(rhs)) => lhs.eq(rhs),
-            (ParentOf(lhs), ParentOf(rhs)) => lhs.eq(rhs),
-            _ => false,
-        }
-    }
-}
-
-impl<Arena> Eq for RangeRelation<Arena> {}
-
 impl<Arena> RangeRelation<Arena> {
     #[inline]
     pub fn parent() -> Self {
         Self::ParentOf(IdRange::default())
+    }
+
+    #[inline]
+    pub fn parent_of(self) -> Option<IdRange<Arena>> {
+        match self {
+            RangeRelation::ParentOf(c) => Some(c),
+            RangeRelation::ChildOf(_) => None,
+        }
+    }
+
+    #[inline]
+    pub fn child_of(self) -> Option<Id<Arena>> {
+        match self {
+            RangeRelation::ChildOf(p) => Some(p),
+            RangeRelation::ParentOf(_) => None,
+        }
     }
 }
 
@@ -63,6 +66,15 @@ impl<Arena: Fixed> RangeRelations<Arena> {
 
         let relation = RangeRelation::ChildOf(parent.id());
         self.insert_if_empty(id, relation);
+    }
+
+    #[inline]
+    pub fn parents<'a, I: IntoIterator<Item = Id<Arena>> + 'a>(
+        &'a self,
+        iter: I,
+    ) -> impl Iterator<Item = Id<Arena>> + 'a {
+        iter.into_iter()
+            .filter(move |id| matches!(self[id], RangeRelation::ParentOf(_)))
     }
 }
 
