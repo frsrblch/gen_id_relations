@@ -24,6 +24,32 @@ impl<Arena> VecRelation<Arena> {
     pub fn parent() -> Self {
         Self::ParentOf(Vec::default())
     }
+
+    #[inline]
+    pub fn parent_of(&self) -> Option<&Vec<Id<Arena>>> {
+        match self {
+            Self::ParentOf(c) => Some(c),
+            Self::ChildOf(_) => None,
+        }
+    }
+
+    #[inline]
+    pub fn child_of(&self) -> Option<Id<Arena>> {
+        match self {
+            Self::ChildOf(p) => Some(*p),
+            Self::ParentOf(_) => None,
+        }
+    }
+
+    #[inline]
+    pub fn is_parent(&self) -> bool {
+        matches!(self, Self::ParentOf(_))
+    }
+
+    #[inline]
+    pub fn is_child(&self) -> bool {
+        !self.is_parent()
+    }
 }
 
 #[derive(Debug, ForceDefault, ForceClone)]

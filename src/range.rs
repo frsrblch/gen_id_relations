@@ -28,6 +28,16 @@ impl<Arena> RangeRelation<Arena> {
             RangeRelation::ParentOf(_) => None,
         }
     }
+
+    #[inline]
+    pub fn is_parent(&self) -> bool {
+        matches!(self, Self::ParentOf(_))
+    }
+
+    #[inline]
+    pub fn is_child(&self) -> bool {
+        !self.is_parent()
+    }
 }
 
 #[derive(Debug, ForceDefault, ForceClone)]
