@@ -1,7 +1,7 @@
 use super::*;
 use gen_id_allocator::Fixed;
 
-#[derive(Debug, ForceClone, ForceEq, ForcePartialEq)]
+#[derive(Debug, ForceCopy, ForceClone, ForceEq, ForcePartialEq)]
 pub enum RangeRelation<Arena> {
     ChildOf(Id<Arena>),
     ParentOf(IdRange<Arena>),
