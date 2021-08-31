@@ -60,6 +60,7 @@ pub struct VecRelations<Arena> {
 /// Requires fixed because unlinking is not implemented
 impl<Arena> VecRelations<Arena> {
     #[inline]
+    #[track_caller]
     fn insert_if_empty(&mut self, id: impl ValidId<Arena = Arena>, relation: VecRelation<Arena>) {
         match self.values.get(id.id()) {
             None => self.values.insert(id.id(), relation),
@@ -71,11 +72,13 @@ impl<Arena> VecRelations<Arena> {
     }
 
     #[inline]
+    #[track_caller]
     pub fn insert_parent(&mut self, id: impl ValidId<Arena = Arena>) {
         self.insert_if_empty(id, VecRelation::parent());
     }
 
     #[inline]
+    #[track_caller]
     pub fn insert_child<V0: ValidId<Arena = Arena>, V1: ValidId<Arena = Arena>>(
         &mut self,
         id: V0,
@@ -95,6 +98,7 @@ impl<Arena, V: ValidId<Arena = Arena>> Index<V> for VecRelations<Arena> {
     type Output = VecRelation<Arena>;
 
     #[inline]
+    #[track_caller]
     fn index(&self, index: V) -> &Self::Output {
         self.values.index(index.id())
     }
