@@ -1,6 +1,5 @@
 use force_derive::{ForceClone, ForceCopy, ForceDefault, ForceEq, ForcePartialEq};
-use gen_id_allocator::{Id, IdRange, ValidId};
-use gen_id_component::RawComponent;
+use gen_id::{component::RawComponent, Id, IdRange, ValidId};
 use iter_context::ContextualIterator;
 use std::ops::Index;
 

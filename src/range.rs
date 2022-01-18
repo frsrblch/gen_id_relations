@@ -1,20 +1,20 @@
 use super::*;
-use gen_id_allocator::Fixed;
+use gen_id::{Entity, Fixed};
 
 #[derive(Debug, ForceCopy, ForceClone, ForceEq, ForcePartialEq)]
-pub enum RangeRelation<Arena> {
-    ChildOf(Id<Arena>),
-    ParentOf(IdRange<Arena>),
+pub enum RangeRelation<E: Entity> {
+    ChildOf(Id<E>),
+    ParentOf(IdRange<E>),
 }
 
-impl<Arena> RangeRelation<Arena> {
+impl<E: Entity> RangeRelation<E> {
     #[inline]
     pub fn parent() -> Self {
         Self::ParentOf(IdRange::default())
     }
 
     #[inline]
-    pub fn parent_of(self) -> Option<IdRange<Arena>> {
+    pub fn parent_of(self) -> Option<IdRange<E>> {
         match self {
             RangeRelation::ParentOf(c) => Some(c),
             RangeRelation::ChildOf(_) => None,
@@ -22,7 +22,7 @@ impl<Arena> RangeRelation<Arena> {
     }
 
     #[inline]
-    pub fn child_of(self) -> Option<Id<Arena>> {
+    pub fn child_of(self) -> Option<Id<E>> {
         match self {
             RangeRelation::ChildOf(p) => Some(p),
             RangeRelation::ParentOf(_) => None,
@@ -41,15 +41,15 @@ impl<Arena> RangeRelation<Arena> {
 }
 
 #[derive(Debug, ForceDefault, ForceClone)]
-pub struct RangeRelations<Arena> {
-    values: RawComponent<Arena, RangeRelation<Arena>>,
+pub struct RangeRelations<E: Entity> {
+    values: RawComponent<E, RangeRelation<E>>,
 }
 
 /// Requires fixed because unlinking is not implemented
-impl<Arena: Fixed> RangeRelations<Arena> {
+impl<E: Entity<IdType = Fixed>> RangeRelations<E> {
     #[inline]
     #[track_caller]
-    fn insert_if_empty(&mut self, id: impl ValidId<Arena = Arena>, relation: RangeRelation<Arena>) {
+    fn insert_if_empty(&mut self, id: impl ValidId<Entity = E>, relation: RangeRelation<E>) {
         match self.values.get(id.id()) {
             None => self.values.insert(id.id(), relation),
             Some(_existing) => panic!(
@@ -61,19 +61,19 @@ impl<Arena: Fixed> RangeRelations<Arena> {
 
     #[inline]
     #[track_caller]
-    pub fn insert_parent(&mut self, id: impl ValidId<Arena = Arena>) {
+    pub fn insert_parent(&mut self, id: impl ValidId<Entity = E>) {
         self.insert_if_empty(id, RangeRelation::parent());
     }
 
     #[inline]
     #[track_caller]
-    pub fn insert_child<V0: ValidId<Arena = Arena>, V1: ValidId<Arena = Arena>>(
+    pub fn insert_child<V0: ValidId<Entity = E>, V1: ValidId<Entity = E>>(
         &mut self,
         id: V0,
         parent: V1,
     ) {
         match &mut self.values[parent.id()] {
-            RangeRelation::ParentOf(children) => children.extend(id.id()),
+            RangeRelation::ParentOf(children) => children.append(id.id()),
             _ => panic!("parent id is not a parent"),
         }
 
@@ -82,17 +82,17 @@ impl<Arena: Fixed> RangeRelations<Arena> {
     }
 
     #[inline]
-    pub fn parents<'a, I: IntoIterator<Item = Id<Arena>> + 'a>(
+    pub fn parents<'a, I: IntoIterator<Item = Id<E>> + 'a>(
         &'a self,
         iter: I,
-    ) -> impl Iterator<Item = Id<Arena>> + 'a {
+    ) -> impl Iterator<Item = Id<E>> + 'a {
         iter.into_iter()
             .filter(move |id| matches!(self[id], RangeRelation::ParentOf(_)))
     }
 }
 
-impl<Arena, V: ValidId<Arena = Arena>> Index<V> for RangeRelations<Arena> {
-    type Output = RangeRelation<Arena>;
+impl<E: Entity, V: ValidId<Entity = E>> Index<V> for RangeRelations<E> {
+    type Output = RangeRelation<E>;
 
     #[inline]
     #[track_caller]
@@ -101,38 +101,37 @@ impl<Arena, V: ValidId<Arena = Arena>> Index<V> for RangeRelations<Arena> {
     }
 }
 
-impl<'a, Arena> IntoIterator for &'a RangeRelations<Arena> {
-    type Item = &'a RangeRelation<Arena>;
-    type IntoIter = <&'a RawComponent<Arena, RangeRelation<Arena>> as IntoIterator>::IntoIter;
+impl<'a, E: Entity> IntoIterator for &'a RangeRelations<E> {
+    type Item = &'a RangeRelation<E>;
+    type IntoIter = <&'a RawComponent<E, RangeRelation<E>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()
     }
 }
 
-impl<'a, Arena> ContextualIterator for &'a RangeRelations<Arena> {
-    type Context = Arena;
+impl<'a, E: Entity> ContextualIterator for &'a RangeRelations<E> {
+    type Context = E;
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use gen_id_allocator::{fixed_id, Valid};
+    use gen_id::{Entity, Fixed, RangeAllocator};
 
     #[derive(Debug)]
     struct Arena;
 
-    fixed_id! { Arena }
-
-    fn get_id<Arena>(index: usize) -> Valid<'static, Id<Arena>> {
-        Valid::assert(Id::<Arena>::first(index))
+    impl Entity for Arena {
+        type IdType = Fixed;
     }
 
     #[test]
     fn get_children_for_new_parent_returns_empty_vec() {
         let mut graph = RangeRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let parent = get_id(0);
+        let parent = alloc.create();
 
         graph.insert_parent(parent);
         assert_eq!(graph[parent], RangeRelation::parent());
@@ -141,9 +140,10 @@ mod test {
     #[test]
     fn link_child_to_parent() {
         let mut graph = RangeRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
-        let id1 = get_id(1);
+        let id0 = alloc.create();
+        let id1 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_child(id1, id0);
@@ -156,10 +156,11 @@ mod test {
     #[should_panic]
     fn link_child_to_another_child() {
         let mut graph = RangeRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
-        let id1 = get_id(1);
-        let id2 = get_id(2);
+        let id0 = alloc.create();
+        let id1 = alloc.create();
+        let id2 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_child(id1, id0);
@@ -170,8 +171,9 @@ mod test {
     #[should_panic]
     fn insert_parent_overtop_of_another_link() {
         let mut graph = RangeRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
+        let id0 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_parent(id0);
@@ -181,9 +183,10 @@ mod test {
     #[should_panic]
     fn insert_child_overtop_of_another_parent() {
         let mut graph = RangeRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
-        let id1 = get_id(1);
+        let id0 = alloc.create();
+        let id1 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_parent(id1);

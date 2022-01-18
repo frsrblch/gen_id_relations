@@ -6,10 +6,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gen_id_allocator = { git = "https://github.com/frsrblch/gen_id_allocator" }
-gen_id_component = { git = "https://github.com/frsrblch/gen_id_component" }
+gen_id = { git = "https://github.com/frsrblch/gen_id" }
 iter_context = { git = "https://github.com/frsrblch/iter_context" }
 force_derive = { git = "https://github.com/frsrblch/force_derive" }
-
-[dev-dependencies]
-gen_id_allocator = { git = "https://github.com/frsrblch/gen_id_allocator", features = ['assert_valid', 'id_creation'] }

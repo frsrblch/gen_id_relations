@@ -1,12 +1,13 @@
 use super::*;
+use gen_id::Entity;
 
 #[derive(Debug, ForceClone)]
-pub enum VecRelation<Arena> {
-    ChildOf(Id<Arena>),
-    ParentOf(Vec<Id<Arena>>),
+pub enum VecRelation<E: Entity> {
+    ChildOf(Id<E>),
+    ParentOf(Vec<Id<E>>),
 }
 
-impl<Arena> PartialEq for VecRelation<Arena> {
+impl<E: Entity> PartialEq for VecRelation<E> {
     fn eq(&self, other: &Self) -> bool {
         use VecRelation::*;
         match (self, other) {
@@ -17,16 +18,16 @@ impl<Arena> PartialEq for VecRelation<Arena> {
     }
 }
 
-impl<Arena> Eq for VecRelation<Arena> {}
+impl<E: Entity> Eq for VecRelation<E> {}
 
-impl<Arena> VecRelation<Arena> {
+impl<E: Entity> VecRelation<E> {
     #[inline]
     pub fn parent() -> Self {
         Self::ParentOf(Vec::default())
     }
 
     #[inline]
-    pub fn parent_of(&self) -> Option<&Vec<Id<Arena>>> {
+    pub fn parent_of(&self) -> Option<&Vec<Id<E>>> {
         match self {
             Self::ParentOf(c) => Some(c),
             Self::ChildOf(_) => None,
@@ -34,7 +35,7 @@ impl<Arena> VecRelation<Arena> {
     }
 
     #[inline]
-    pub fn child_of(&self) -> Option<Id<Arena>> {
+    pub fn child_of(&self) -> Option<Id<E>> {
         match self {
             Self::ChildOf(p) => Some(*p),
             Self::ParentOf(_) => None,
@@ -53,15 +54,15 @@ impl<Arena> VecRelation<Arena> {
 }
 
 #[derive(Debug, ForceDefault, ForceClone)]
-pub struct VecRelations<Arena> {
-    values: RawComponent<Arena, VecRelation<Arena>>,
+pub struct VecRelations<E: Entity> {
+    values: RawComponent<E, VecRelation<E>>,
 }
 
 /// Requires fixed because unlinking is not implemented
-impl<Arena> VecRelations<Arena> {
+impl<E: Entity> VecRelations<E> {
     #[inline]
     #[track_caller]
-    fn insert_if_empty(&mut self, id: impl ValidId<Arena = Arena>, relation: VecRelation<Arena>) {
+    fn insert_if_empty(&mut self, id: impl ValidId<Entity = E>, relation: VecRelation<E>) {
         match self.values.get(id.id()) {
             None => self.values.insert(id.id(), relation),
             Some(_existing) => panic!(
@@ -73,13 +74,13 @@ impl<Arena> VecRelations<Arena> {
 
     #[inline]
     #[track_caller]
-    pub fn insert_parent(&mut self, id: impl ValidId<Arena = Arena>) {
+    pub fn insert_parent(&mut self, id: impl ValidId<Entity = E>) {
         self.insert_if_empty(id, VecRelation::parent());
     }
 
     #[inline]
     #[track_caller]
-    pub fn insert_child<V0: ValidId<Arena = Arena>, V1: ValidId<Arena = Arena>>(
+    pub fn insert_child<V0: ValidId<Entity = E>, V1: ValidId<Entity = E>>(
         &mut self,
         id: V0,
         parent: V1,
@@ -94,8 +95,8 @@ impl<Arena> VecRelations<Arena> {
     }
 }
 
-impl<Arena, V: ValidId<Arena = Arena>> Index<V> for VecRelations<Arena> {
-    type Output = VecRelation<Arena>;
+impl<E: Entity, V: ValidId<Entity = E>> Index<V> for VecRelations<E> {
+    type Output = VecRelation<E>;
 
     #[inline]
     #[track_caller]
@@ -104,38 +105,37 @@ impl<Arena, V: ValidId<Arena = Arena>> Index<V> for VecRelations<Arena> {
     }
 }
 
-impl<'a, Arena> IntoIterator for &'a VecRelations<Arena> {
-    type Item = &'a VecRelation<Arena>;
-    type IntoIter = <&'a RawComponent<Arena, VecRelation<Arena>> as IntoIterator>::IntoIter;
+impl<'a, E: Entity> IntoIterator for &'a VecRelations<E> {
+    type Item = &'a VecRelation<E>;
+    type IntoIter = <&'a RawComponent<E, VecRelation<E>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()
     }
 }
 
-impl<'a, Arena> ContextualIterator for &'a VecRelations<Arena> {
-    type Context = Arena;
+impl<'a, E: Entity> ContextualIterator for &'a VecRelations<E> {
+    type Context = E;
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use gen_id_allocator::{fixed_id, Valid};
+    use gen_id::{Entity, Fixed, RangeAllocator};
 
     #[derive(Debug)]
     struct Arena;
 
-    fixed_id! { Arena }
-
-    fn get_id<Arena>(index: usize) -> Valid<'static, Id<Arena>> {
-        Valid::assert(Id::<Arena>::first(index))
+    impl Entity for Arena {
+        type IdType = Fixed;
     }
 
     #[test]
     fn get_children_for_new_parent_returns_empty_vec() {
         let mut graph = VecRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let parent = get_id(0);
+        let parent = alloc.create();
 
         graph.insert_parent(parent);
         assert_eq!(graph[parent], VecRelation::parent());
@@ -144,9 +144,10 @@ mod test {
     #[test]
     fn link_child_to_parent() {
         let mut graph = VecRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
-        let id1 = get_id(1);
+        let id0 = alloc.create();
+        let id1 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_child(id1, id0);
@@ -159,10 +160,11 @@ mod test {
     #[should_panic]
     fn link_child_to_another_child() {
         let mut graph = VecRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
-        let id1 = get_id(1);
-        let id2 = get_id(2);
+        let id0 = alloc.create();
+        let id1 = alloc.create();
+        let id2 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_child(id1, id0);
@@ -173,8 +175,9 @@ mod test {
     #[should_panic]
     fn insert_parent_overtop_of_another_link() {
         let mut graph = VecRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
+        let id0 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_parent(id0);
@@ -184,9 +187,10 @@ mod test {
     #[should_panic]
     fn insert_child_overtop_of_another_parent() {
         let mut graph = VecRelations::<Arena>::default();
+        let mut alloc = RangeAllocator::<Arena>::default();
 
-        let id0 = get_id(0);
-        let id1 = get_id(1);
+        let id0 = alloc.create();
+        let id1 = alloc.create();
 
         graph.insert_parent(id0);
         graph.insert_parent(id1);
